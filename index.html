@@ -1,197 +1,109 @@
 <!DOCTYPE html>
-<html>
+<html lang="ko">
 <head>
-  <meta charset="utf-8">
-  <title>화성특례시 방범 CCTV 현황</title>
-  <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=d6ac13dbec76f46fd8d06ff83c394a5f&libraries=services,clusterer"></script>
+  <meta charset="UTF-8">
+  <title>화성특례시 방범CCTV 현황</title>
   <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-      font-family: sans-serif;
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; font-family: sans-serif; }
+    #map { width: 100%; height: 100%; }
+    .header {
+      position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
+      background: #5a3e36; color: white; padding: 10px 20px; border-radius: 8px; z-index: 10;
+      font-weight: bold; font-size: 18px;
     }
-    #mapContainer {
-      display: flex;
-      height: 100%;
-    }
-    #map, #roadview {
-      height: 100%;
-    }
-    #map {
-      width: 100%;
-    }
-    #roadview {
-      display: none;
-      width: 50%;
-    }
-    #controls {
-      position: absolute;
-      top: 60px;
-      left: 10px;
-      z-index: 10;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
+    .btn-wrap {
+      position: fixed; top: 60px; left: 10px; z-index: 10;
+      display: flex; flex-direction: column; gap: 10px;
     }
     .btn {
-      padding: 8px 12px;
-      background-color: #795548;
-      border: none;
-      border-radius: 6px;
-      color: white;
-      cursor: pointer;
-      font-size: 14px;
-      box-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+      background-color: #5a3e36; color: white; border: none; padding: 8px 12px; border-radius: 6px;
+      cursor: pointer; font-size: 14px;
     }
-    .btn:hover {
-      background-color: #5d4037;
+    .search-list {
+      position: fixed; top: 200px; left: 10px; background: white; border: 1px solid #ccc;
+      max-height: 300px; overflow-y: auto; z-index: 10; width: 250px; border-radius: 6px;
     }
-    .input-box {
-      padding: 6px;
-      border-radius: 4px;
-      border: 1px solid #ccc;
-      font-size: 14px;
-    }
-    #header {
-      position: absolute;
-      top: 0;
-      width: 100%;
-      text-align: center;
-      background-color: white;
-      padding: 10px 0;
-      font-size: 20px;
-      font-weight: bold;
-      z-index: 1000;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    #closeRoadviewBtn {
-      display: none;
-    }
-    #searchResults {
-      position: absolute;
-      top: 110px;
-      left: 10px;
-      background: white;
-      padding: 8px;
-      border-radius: 6px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-      z-index: 999;
-      max-height: 200px;
-      overflow-y: auto;
-      font-size: 13px;
-      display: none;
-    }
-    #searchResults a {
-      color: #795548;
-      text-decoration: none;
-      font-weight: bold;
-    }
-    #searchResults div {
-      margin-bottom: 4px;
-    }
+    .search-list ul { margin: 0; padding: 0; list-style: none; }
+    .search-list li { padding: 8px; border-bottom: 1px solid #eee; cursor: pointer; }
+    .search-list li:hover { background: #f0f0f0; }
+    .search-close { text-align: right; padding: 5px; cursor: pointer; font-size: 12px; color: gray; }
+    .search-group { display: flex; gap: 5px; }
+    .search-input { flex: 1; }
   </style>
 </head>
 <body>
-
-<div id="header">화성특례시 방범 CCTV 현황</div>
-
-<div id="controls">
-  <button class="btn" onclick="toggleMapType()">🗺️ 지도/스카이뷰</button>
-  <button class="btn" onclick="toggleRoadviewOverlay()">🚶 로드뷰 도로 보기</button>
-  <input type="text" id="markerSearchInput" class="input-box" placeholder="개소 이름 검색">
-  <button class="btn" onclick="searchMarkerByName()">🔎 개소 검색</button>
-  <button class="btn" onclick="trackCurrentLocation()">📡 내 위치</button>
-  <button class="btn" id="closeRoadviewBtn" onclick="closeRoadview()">❌ 로드뷰 닫기</button>
-</div>
-
-<div id="searchResults">
-  <div style="text-align: right;">
-    <button class="btn" style="padding:2px 6px;font-size:12px;" onclick="closeSearchResults()">닫기</button>
+  <div class="header">화성특례시 방범CCTV 현황</div>
+  <div class="btn-wrap">
+    <button class="btn" onclick="toggleRoadviewLayer()">로드뷰 도로보기</button>
+    <button class="btn" onclick="toggleMapType()">지도 / 스카이뷰</button>
+    <div class="search-group">
+      <input type="text" id="searchInput" class="btn search-input" placeholder="마커 이름 검색">
+      <button class="btn" onclick="filterMarkers()">검색</button>
+    </div>
   </div>
-  <div id="searchResultItems"></div>
-</div>
+  <div class="search-list" id="searchList" style="display:none;">
+    <div class="search-close" onclick="document.getElementById('searchList').style.display='none'">닫기 ✕</div>
+    <ul id="markerResults"></ul>
+  </div>
+  <div id="map" style="float:left; width:100%; height:100%;"></div>
+  <div id="roadview" style="width:0; height:100%; float:right;"></div>
 
-<div id="mapContainer">
-  <div id="map"></div>
-  <div id="roadview"></div>
-</div>
+  <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=d6ac13dbec76f46fd8d06ff83c394a5f&libraries=clusterer"></script>
+  <script>
+    const mapContainer = document.getElementById('map');
+    const mapOption = { center: new kakao.maps.LatLng(37.1985, 126.8319), level: 7 };
+    const map = new kakao.maps.Map(mapContainer, mapOption);
 
-<script>
-  function initializeMap() {
-    const container = document.getElementById('map');
-    const mapOption = {
-      center: new kakao.maps.LatLng(37.1993, 126.8308),
-      level: 5
-    };
-    const map = new kakao.maps.Map(container, mapOption);
-    const geocoder = new kakao.maps.services.Geocoder();
-    const roadview = new kakao.maps.Roadview(document.getElementById('roadview'));
+    const roadviewContainer = document.getElementById('roadview');
+    const roadview = new kakao.maps.Roadview(roadviewContainer);
     const roadviewClient = new kakao.maps.RoadviewClient();
+    let roadviewLayer = new kakao.maps.RoadviewOverlay();
+    let roadviewEnabled = false;
 
-    let isHybrid = false;
-    window.toggleMapType = function () {
-      map.setMapTypeId(isHybrid ? kakao.maps.MapTypeId.ROADMAP : kakao.maps.MapTypeId.HYBRID);
-      isHybrid = !isHybrid;
-    }
-
-    let roadviewOverlayOn = false;
-    window.toggleRoadviewOverlay = function () {
-      if (roadviewOverlayOn) {
-        map.removeOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);
-      } else {
+    function toggleRoadviewLayer() {
+      roadviewEnabled = !roadviewEnabled;
+      if (roadviewEnabled) {
         map.addOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);
+        alert("로드뷰 도로보기가 활성화되었습니다.\n지도 클릭 시 로드뷰가 나타납니다.");
+      } else {
+        map.removeOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);
+        document.getElementById('map').style.width = '100%';
+        document.getElementById('roadview').style.width = '0';
+        roadview.setPanoId(null);
+        roadviewEnabled = false;
       }
-      roadviewOverlayOn = !roadviewOverlayOn;
-    }
-
-    window.closeRoadview = function () {
-      document.getElementById('roadview').style.display = 'none';
-      document.getElementById('map').style.width = '100%';
-      document.getElementById('closeRoadviewBtn').style.display = 'none';
     }
 
     kakao.maps.event.addListener(map, 'click', function(mouseEvent) {
+      if (!roadviewEnabled) return;
       const position = mouseEvent.latLng;
+      document.getElementById('map').style.width = '50%';
+      document.getElementById('roadview').style.width = '50%';
+      roadview.relayout();
       roadviewClient.getNearestPanoId(position, 50, function(panoId) {
         if (panoId) {
-          const roadviewDiv = document.getElementById('roadview');
-          const mapDiv = document.getElementById('map');
-          roadviewDiv.style.display = 'block';
-          mapDiv.style.width = '50%';
-          roadviewDiv.style.width = '50%';
-          roadview.relayout();
           roadview.setPanoId(panoId, position);
-          document.getElementById('closeRoadviewBtn').style.display = 'inline-block';
+          roadview.setViewpoint({ pan: 0, tilt: 0, zoom: 0 });
         } else {
-          alert('로드뷰가 없습니다.');
+          alert('해당 위치에는 로드뷰가 없습니다.');
         }
       });
     });
 
-    let currentMarker = null;
-    window.trackCurrentLocation = function () {
-      if (navigator.geolocation) {
-        navigator.geolocation.watchPosition(function(position) {
-          const latlng = new kakao.maps.LatLng(position.coords.latitude, position.coords.longitude);
-          if (!currentMarker) {
-            currentMarker = new kakao.maps.Marker({ map: map, position: latlng });
-          } else {
-            currentMarker.setPosition(latlng);
-          }
-          map.setCenter(latlng);
-        });
-      } else {
-        alert("브라우저가 위치 추적을 지원하지 않습니다.");
-      }
+    let isSkyview = false;
+    function toggleMapType() {
+      isSkyview = !isSkyview;
+      map.setMapTypeId(isSkyview ? kakao.maps.MapTypeId.HYBRID : kakao.maps.MapTypeId.ROADMAP);
     }
 
-    const markerImageSize = new kakao.maps.Size(18, 18);
-    const markerImageOptions = { offset: new kakao.maps.Point(9, 18) };
-    const basicMarkerImage = new kakao.maps.MarkerImage("https://cdn-icons-png.flaticon.com/512/684/684908.png", markerImageSize, markerImageOptions);
+    const clusterer = new kakao.maps.MarkerClusterer({
+      map: map,
+      averageCenter: true,
+      minLevel: 7
+    });
 
-    const locations = [
-    { name: "기안동신미주A버스정류장", lat: 37.21975111, lng: 126.9893767 },
+    const markersData = [
+	{ name: "기안동신미주A버스정류장", lat: 37.21975111, lng: 126.9893767 },
 { name: "네오가베어린이집", lat: 37.2270475, lng: 126.9729164 },
 { name: "배양동마을회관앞", lat: 37.22173194, lng: 126.9920611 },
 { name: "기안중학교정문", lat: 37.22348333, lng: 126.9762167 },
@@ -3821,7 +3733,7 @@
 { name: "고정리320-검지(20차)", lat: 37.24551083, lng: 126.7468539 },
 { name: "고정리167-검지(20차)", lat: 37.24551083, lng: 126.7468539 },
 { name: "고정리240-검지(20차)", lat: 37.24551083, lng: 126.7468539 },
-{ name: "고정리102-5-검지(20차)", lat: 37.2625, lng: 126.7469442 },
+{ name: "고정리102-5-검지(20차)", lat: 37.25025, lng: 126.74960548 },
 { name: "고정리349-회전(20차)", lat: 37.24551083, lng: 126.7468539 },
 { name: "고정리186-2-검지(20차)", lat: 37.2482626, lng: 126.7454311 },
 { name: "고정리471-회전(20차)", lat: 37.24551083, lng: 126.7468539 },
@@ -5452,73 +5364,75 @@
 { name: "전곡항 해상관찰로[2]", lat: 37.18486338, lng: 126.65107047 }
     ];
 
-    const clusterer = new kakao.maps.MarkerClusterer({
-      map: map,
-      averageCenter: true,
-      minLevel: 6
-    });
+    const markers = [];
 
-    const markerInfoMap = new Map();
-    const markers = locations.map(loc => {
+    markersData.forEach(({ name, lat, lng }) => {
+      const position = new kakao.maps.LatLng(lat, lng);
       const marker = new kakao.maps.Marker({
-        position: new kakao.maps.LatLng(loc.lat, loc.lng),
-        image: basicMarkerImage
+        position,
+        image: new kakao.maps.MarkerImage(
+          'https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png',
+          new kakao.maps.Size(24, 35)
+        )
       });
-      const infowindow = new kakao.maps.InfoWindow({
-        content: `<div style="padding:6px 10px;font-size:13px;color:#4e342e;font-weight:bold;">
-                    ${loc.name}<br>
-                    <a href="https://map.kakao.com/link/to/${loc.name},${loc.lat},${loc.lng}" target="_blank" style="color:#5d4037;text-decoration:underline;">길안내</a>
-                  </div>`
-      });
+
+      const content = `
+        <div style="padding:10px;font-size:13px;">
+          <strong>${name}</strong><br/>
+          <a href="kakaonavi://navigate?name=${encodeURIComponent(name)}&lat=${lat}&lon=${lng}"
+             style="color:white;background:#5a3e36;padding:5px 8px;border-radius:4px;display:inline-block;margin-top:5px;">
+             길찾기
+          </a>
+        </div>`;
+
+      const infowindow = new kakao.maps.InfoWindow({ content });
       let isOpen = false;
-      kakao.maps.event.addListener(marker, 'click', function() {
-        if (isOpen) infowindow.close();
-        else infowindow.open(map, marker);
-        isOpen = !isOpen;
-      });
-      markerInfoMap.set(loc.name, { marker, infowindow });
-      return marker;
-    });
-
-    clusterer.addMarkers(markers);
-
-    window.searchMarkerByName = function () {
-      const keyword = document.getElementById('markerSearchInput').value.trim();
-      const resultBox = document.getElementById('searchResults');
-      const itemsBox = document.getElementById('searchResultItems');
-      itemsBox.innerHTML = '';
-      resultBox.style.display = 'block';
-      if (!keyword) {
-        alert("마커 이름을 입력해주세요.");
-        return;
-      }
-      let foundCount = 0;
-      markerInfoMap.forEach((value, key) => {
-        value.infowindow.close();
-        if (key.includes(keyword)) {
-          const listItem = document.createElement('div');
-          listItem.innerHTML = `📍 <a href="#" onclick="focusMarker('${key}')">${key}</a>`;
-          itemsBox.appendChild(listItem);
-          foundCount++;
+      kakao.maps.event.addListener(marker, 'click', () => {
+        if (isOpen) {
+          infowindow.close();
+          isOpen = false;
+        } else {
+          infowindow.open(map, marker);
+          isOpen = true;
         }
       });
-      if (foundCount === 0) itemsBox.innerHTML = '<div>검색 결과가 없습니다.</div>';
+
+      marker.name = name;
+      marker.customData = { infowindow };
+      markers.push(marker);
+    });
+
+    function updateCluster() {
+      const bounds = map.getBounds();
+      const visibleMarkers = markers.filter(marker => bounds.contain(marker.getPosition()));
+      clusterer.clear();
+      clusterer.addMarkers(visibleMarkers);
     }
 
-    window.focusMarker = function (name) {
-      const info = markerInfoMap.get(name);
-      if (info) {
-        map.setCenter(info.marker.getPosition());
+    kakao.maps.event.addListener(map, 'idle', updateCluster);
+    updateCluster();
+
+    function filterMarkers() {
+      const query = document.getElementById('searchInput').value.trim().toLowerCase();
+      const list = document.getElementById('markerResults');
+      list.innerHTML = '';
+      if (!query) {
+        document.getElementById('searchList').style.display = 'none';
+        return;
       }
+      document.getElementById('searchList').style.display = 'block';
+      markers.forEach(marker => {
+        if (marker.name.toLowerCase().includes(query)) {
+          const li = document.createElement('li');
+          li.innerText = marker.name;
+          li.onclick = () => {
+            map.setCenter(marker.getPosition());
+            map.setLevel(5);
+          };
+          list.appendChild(li);
+        }
+      });
     }
-
-    window.closeSearchResults = function () {
-      document.getElementById('searchResults').style.display = 'none';
-    }
-  }
-
-  initializeMap();
-</script>
-
+  </script>
 </body>
 </html>
